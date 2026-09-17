@@ -1,25 +1,27 @@
 const toggle = document.querySelector('.nav-toggle');
-const nav = document.querySelector('#site-nav');
+const navigation = document.querySelector('#site-nav');
 const year = document.querySelector('#year');
+
 if (year) year.textContent = new Date().getFullYear();
 
-if (toggle && nav) {
+if (toggle && navigation) {
   document.body.classList.add('nav-ready');
   toggle.hidden = false;
+
   const closeMenu = (restoreFocus = false) => {
-    nav.dataset.open = 'false';
+    navigation.dataset.open = 'false';
     toggle.setAttribute('aria-expanded', 'false');
     if (restoreFocus) toggle.focus();
   };
+
   toggle.addEventListener('click', () => {
     const open = toggle.getAttribute('aria-expanded') !== 'true';
     toggle.setAttribute('aria-expanded', String(open));
-    nav.dataset.open = String(open);
+    navigation.dataset.open = String(open);
   });
-  nav.addEventListener('click', (event) => {
-    if (!event.target.closest('a')) return;
-    // Return focus before hiding the navigation so keyboard focus is never stranded.
-    closeMenu(window.matchMedia('(max-width: 760px)').matches);
+
+  navigation.addEventListener('click', (event) => {
+    if (event.target.closest('a')) closeMenu();
   });
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && toggle.getAttribute('aria-expanded') === 'true') closeMenu(true);
@@ -27,5 +29,5 @@ if (toggle && nav) {
   document.addEventListener('click', (event) => {
     if (!event.target.closest('.site-header')) closeMenu();
   });
-  window.matchMedia('(max-width: 760px)').addEventListener('change', () => closeMenu());
+  window.matchMedia('(max-width: 780px)').addEventListener('change', () => closeMenu());
 }
