@@ -1,4 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="AG monogram">
-  <rect width="64" height="64" rx="16" fill="#1e2a24"/>
-  <text x="32" y="40" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#fffdf8">AG</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#253c32"/><text x="13" y="47" font-family="Georgia,serif" font-weight="bold" font-size="49" fill="#f9f7f2">a</text><circle cx="49" cy="46" r="5" fill="#dfe8bf"/></svg>
