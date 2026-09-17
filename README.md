@@ -1,32 +1,32 @@
-# Avishag — Portfolio
+# Avi Gorodetski — Portfolio
 
-Personal portfolio website for Avi Gorodetski.
+A personal and professional portfolio featuring Avi’s work in social-impact entrepreneurship, community leadership, campus programming, and client service.
 
-## Overview
+## Structure
 
-A lightweight, responsive portfolio built with semantic HTML, modern CSS, and vanilla JavaScript. The site is intentionally dependency-free so it is fast, easy to maintain, and straightforward to publish with GitHub Pages.
+- `index.html`: biography, selected project stories, experience, and contact link
+- `styles.css`: responsive editorial design, print styles, focus states, and reduced-motion support
+- `script.js`: progressively enhanced mobile navigation and current copyright year
+- `favicon.svg`: custom site icon
 
-## Features
+## Design and accessibility
 
-- Responsive layout for mobile, tablet, and desktop
-- Semantic HTML landmarks and accessible navigation
-- Keyboard-friendly mobile menu
-- Skip link and visible focus states
-- Reduced-motion support
-- SEO description and theme metadata
-- No external runtime dependencies
+The site uses semantic HTML, native expandable project details, a skip link, visible keyboard focus, and a mobile menu with accurate expanded state and Escape handling. Navigation and project content remain available without JavaScript. There are no runtime dependencies, external font requests, trackers, or third-party embeds.
 
-## Files
+All local assets use relative paths, so the site works from a domain root or a GitHub Pages repository subdirectory.
 
-- `index.html` — content and page structure
-- `styles.css` — design system and responsive layout
-- `script.js` — progressive navigation enhancements
-- `favicon.svg` — site icon
+## Preview
 
-## Local preview
+Run `python3 -m http.server 8000` in this directory, then open `http://localhost:8000`. There is no build step or package installation.
 
-Open `index.html` directly in a browser or serve this directory with any static file server.
+## Editing content
 
-## Deployment
+Update the sections directly in `index.html`. Each project uses a native `details` element for its longer story. Keep the short project introduction readable without expanding the details. Define site-wide colors and spacing in the CSS `:root` variables.
 
-This site is ready for GitHub Pages. After merging, enable Pages in the repository settings and publish from the `main` branch root.
+The contact destination currently points to Avi’s verified GitHub profile. Replace it with a preferred professional email or LinkedIn URL once provided. No email, profile URL, résumé download, headshot, or testimonial has been invented.
+
+## Publishing
+
+This repository is ready for static hosting. For GitHub Pages, enable Pages in repository settings and select **Deploy from a branch → main → / (root)** after merging the website changes. Repository code being updated does not itself confirm Pages is enabled.
+
+Before publishing, review biography, role dates, and project metrics for accuracy. Refresh time-sensitive information when roles change or after graduation.
