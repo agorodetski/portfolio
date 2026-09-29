@@ -7,7 +7,7 @@ A responsive, multi-page personal and professional portfolio for Avi Gorodetski.
 - `index.html` — introduction and featured work
 - `work/index.html` — selected work
 - `now/index.html` — curated current work, community, and listening updates
-- `work/givv/index.html` and `work/bbyo/index.html` — project stories
+- `work/alphasights/index.html`, `work/givv/index.html`, and the other pages under `work/` — selected experience and project stories
 - `about/index.html` — background and interests
 - `experience/index.html` — roles, education, and résumé
 - `contact/index.html` — email, LinkedIn, and résumé
