@@ -6,12 +6,19 @@ A responsive, multi-page personal and professional portfolio for Avi Gorodetski.
 
 - `index.html` — introduction and featured work
 - `work/index.html` — selected work
+- `now/index.html` — curated current work, community, and listening updates
 - `work/givv/index.html` and `work/bbyo/index.html` — project stories
 - `about/index.html` — background and interests
 - `experience/index.html` — roles, education, and résumé
 - `contact/index.html` — email, LinkedIn, and résumé
 
-The supplied headshot, event photography, and résumé are in `assets/`. The copy and page markup live in `build_site.py`, while `styles.css` and `script.js` provide the shared presentation and mobile navigation. The script writes HTML to the repository root and mirrors the complete static site into `dist/` for Sites hosting. All links and assets use relative URLs, so the site works on a subpath as well as a domain root.
+The supplied headshot, event photography, and résumé are in `assets/`. The copy and page markup live in `build_site.py`, while `styles.css` and `script.js` provide the shared presentation, update renderer, and mobile navigation. Curated update data lives in `updates.json`. The build script writes HTML to the repository root and mirrors the complete static site into `dist/` for Sites hosting. All links and assets use relative URLs, so the site works on a subpath as well as a domain root.
+
+## Curated updates
+
+`updates.json` is the canonical source for the homepage “Recently” section and the full Now page. Keep the list newest-first and to no more than six items. Add an item only when it strengthens the professional story or adds a meaningful personal dimension; do not mirror every social post. Each item requires an ISO date, reader-facing date label, category, title, short summary, source name, and public source URL.
+
+Review these public sources for candidates: Avi's LinkedIn profile, TUCP (`geauxtucp.com` and `@geauxtucp`), GiVV (`@thegivvapp`), Strong City (`mystrongcity.org`), Spotify (`@avigorodetski`), and the GitHub repository. If a source is unavailable, leave the current item unchanged. Never add a claim that cannot be verified against a public source or information Avi has supplied directly. After editing, run the build, confirm the JSON renders on both pages, and publish the resulting `dist/` directory.
 
 ## Editing and preview
 

@@ -13,8 +13,9 @@ def page(path: str, title: str, description: str, active: str, body: str) -> Non
     target.parent.mkdir(parents=True, exist_ok=True)
     depth = len(Path(path).parts) - 1
     base = '../' * depth
-    links = [('Home', 'index.html'), ('Work', 'work/index.html'), ('About', 'about/index.html'),
-             ('Experience', 'experience/index.html'), ('Contact', 'contact/index.html')]
+    links = [('Home', 'index.html'), ('Work', 'work/index.html'), ('Now', 'now/index.html'),
+             ('About', 'about/index.html'), ('Experience', 'experience/index.html'),
+             ('Contact', 'contact/index.html')]
     nav = ''.join(
         f'<a href="{base}{href}"' + (' aria-current="page"' if label == active else '') +
         f'>{label}</a>' for label, href in links
@@ -71,6 +72,11 @@ home = '''
   </div>
   <p class="section-end"><a class="text-link" href="work/index.html">See all selected work <span aria-hidden="true">↗</span></a></p>
 </section>
+<section class="section updates-section"><div class="container">
+  <div class="section-heading"><div><p class="eyebrow">Recently / 02</p><h2>What I’m doing now.</h2></div><p>A short, curated view of current work, community, and the music in rotation.</p></div>
+  <div class="updates-grid" data-updates-source="updates.json" data-updates-limit="3"><p class="updates-status">Loading recent updates…</p></div>
+  <p class="section-end"><a class="text-link" href="now/index.html">Visit the Now page</a></p>
+</div></section>
 <section class="section section-ink"><div class="container invitation"><div><p class="eyebrow">Currently</p><h2>Exploring what comes after Tulane.</h2></div><div><p>I’m interested in strategy, philanthropy, program management, and social-impact roles in New York or Washington, DC.</p><a class="button button-light" href="contact/index.html">Contact <span aria-hidden="true">↗</span></a></div></div></section>
 '''
 page('index.html','Home','Avi Gorodetski builds teams, programs, and experiences across social impact, global leadership, and client service.','Home',home)
@@ -86,6 +92,16 @@ work = '''
 <section class="section soft-section"><div class="container narrow"><p class="eyebrow">Additional work</p><h2>Grantmaking and research.</h2><div class="two-cards"><article><span class="kicker">The Tow Foundation</span><h3>Youth mental health funding</h3><p>Reviewed grant applications for a $10 million innovation fund focused on expanding mental health support for young people.</p></article><article><span class="kicker">Tulane University</span><h3>Qualitative research and editing</h3><p>Analyzed interview narratives in Jewish Studies research and substantively edited a sociology manuscript for structure and clarity.</p></article></div></div></section>
 '''
 page('work/index.html','Selected Work','Explore Avi Gorodetski’s work with GiVV, BBYO, TUCP, Strong City Tulane, and The Tow Foundation.','Work',work)
+
+now = '''
+<section class="page-intro container"><p class="eyebrow">Now / 02</p><h1>What I’m doing, building, and listening to.</h1><p class="lede">A living page for the work and ideas that are most current—edited for signal, not volume.</p></section>
+<section class="section container section-tight">
+  <div class="now-intro"><p class="eyebrow">Current notes</p><p>This page brings together selected updates from my work with TUCP, GiVV, and Strong City, plus occasional notes from LinkedIn and my monthly Spotify habit.</p></div>
+  <div class="updates-grid updates-grid-full" data-updates-source="../updates.json" data-updates-limit="6"><p class="updates-status">Loading current updates…</p></div>
+</section>
+<section class="section soft-section"><div class="container source-strip"><div><p class="eyebrow">Follow along</p><h2>Elsewhere.</h2></div><div class="source-links"><a href="https://www.linkedin.com/in/avigorodetski" target="_blank" rel="noopener noreferrer">LinkedIn</a><a href="https://www.geauxtucp.com/" target="_blank" rel="noopener noreferrer">TUCP</a><a href="https://www.instagram.com/thegivvapp/" target="_blank" rel="noopener noreferrer">GiVV</a><a href="https://www.mystrongcity.org/" target="_blank" rel="noopener noreferrer">Strong City</a><a href="https://open.spotify.com/search/avigorodetski" target="_blank" rel="noopener noreferrer">Spotify</a><a href="https://github.com/agorodetski/portfolio" target="_blank" rel="noopener noreferrer">GitHub</a></div></div></section>
+'''
+page('now/index.html','Now','Current work, community projects, ideas, and monthly listening from Avi Gorodetski.','Now',now)
 
 givv = '''
 <section class="story-intro container"><a class="back-link" href="../index.html">← All work</a><p class="eyebrow">01 / GiVV · Co-founder &amp; COO</p><h1>From student research to a $15K pitch win.</h1><p class="lede">Our team developed a social marketplace concept that connects Tulane students with New Orleans nonprofits.</p><div class="story-facts"><div><strong>15+</strong><span>Student interviews</span></div><div><strong>$15K</strong><span>First-place award</span></div><div><strong>2026</strong><span>Founded at Tulane</span></div></div></section>
@@ -159,12 +175,12 @@ page('contact/index.html','Contact','Get in touch with Avi Gorodetski by email o
 
 # Mirror the authored static site into the directory used by Sites hosting.
 DIST.mkdir(exist_ok=True)
-for path in ['index.html','styles.css','script.js','favicon.svg']:
+for path in ['index.html','styles.css','script.js','favicon.svg','updates.json']:
     shutil.copy2(ROOT / path, DIST / path)
-for directory in ['work','about','experience','contact','assets']:
+for directory in ['work','now','about','experience','contact','assets']:
     src = ROOT / directory
     dst = DIST / directory
     if dst.exists():
         shutil.rmtree(dst)
     shutil.copytree(src, dst)
-print('Built nine static pages with supplied photography and résumé.')
+print('Built ten static pages with supplied photography, résumé, and curated updates.')

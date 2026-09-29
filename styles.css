@@ -104,6 +104,25 @@ h1 em, h2 em { color: inherit; font-style: normal; }
 .invitation p { color: #cccccc; }
 .invitation .eyebrow { color: #c2ccda; }
 
+.updates-section { border-top: 1px solid var(--ink); }
+.updates-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.updates-grid-full { margin-top: 42px; }
+.update-card { min-height: 330px; padding: 24px; background: var(--white); border: 1px solid var(--ink); display: flex; flex-direction: column; }
+.update-meta { display: flex; justify-content: space-between; gap: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--line); color: var(--blue); font-size: .7rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+.update-meta time { color: var(--muted); text-align: right; }
+.update-card h3 { margin: 48px 0 16px; font-size: clamp(1.8rem, 2.6vw, 2.6rem); }
+.update-card p { color: var(--muted); }
+.update-link { margin-top: auto; padding-top: 22px; align-self: flex-start; color: var(--blue); font-size: .76rem; font-weight: 800; letter-spacing: .05em; text-decoration: none; text-transform: uppercase; border-bottom: 1px solid currentColor; }
+.update-link:hover { color: var(--ink); }
+.updates-status { grid-column: 1 / -1; color: var(--muted); }
+.now-intro { display: grid; grid-template-columns: .6fr 1.4fr; gap: 9%; align-items: start; padding-bottom: 42px; border-bottom: 1px solid var(--ink); }
+.now-intro > p:last-child { max-width: 680px; color: var(--muted); font-size: 1.15rem; }
+.source-strip { display: grid; grid-template-columns: .7fr 1.3fr; gap: 9%; }
+.source-strip h2 { font-size: clamp(2.6rem, 4vw, 4rem); }
+.source-links { border-top: 1px solid var(--ink); }
+.source-links a { display: block; padding: 16px 0; border-bottom: 1px solid var(--ink); font-size: 1.15rem; font-weight: 800; text-decoration: none; }
+.source-links a:hover { color: var(--blue); }
+
 .page-intro { padding-top: 88px; padding-bottom: 44px; border-bottom: 1px solid var(--ink); }
 .page-intro h1 { max-width: 12ch; }
 .page-intro .lede { margin-bottom: 0; }
@@ -226,7 +245,9 @@ h1 em, h2 em { color: inherit; font-style: normal; }
   .card-graphic { min-height: 330px; }
   .work-row { grid-template-columns: 1fr; gap: 22px; padding-block: 32px; }
   .work-image { height: 315px; }
-  .two-cards, .personal-grid { grid-template-columns: 1fr; gap: 28px; }
+  .two-cards, .personal-grid, .updates-grid { grid-template-columns: 1fr; gap: 28px; }
+  .update-card { min-height: 290px; }
+  .now-intro, .source-strip { grid-template-columns: 1fr; gap: 24px; }
   .personal-grid h3 { margin-top: 20px; }
   .about-photo { max-width: 540px; }
   .about-photo img { max-height: none; }
