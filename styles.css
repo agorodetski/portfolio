@@ -38,7 +38,7 @@ button { font: inherit; }
 .site-nav a { text-decoration: none; font-size: .82rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 9px 0; }
 .site-nav a:hover, .site-nav a[aria-current="page"] { color: var(--blue); }
 .nav-toggle[hidden] { display: none; }
-.nav-toggle { border: 1px solid var(--ink); background: transparent; color: var(--ink); padding: 7px 12px; min-height: 42px; cursor: pointer; }
+.nav-toggle { display: none; border: 1px solid var(--ink); background: transparent; color: var(--ink); padding: 7px 12px; min-height: 42px; cursor: pointer; }
 
 h1, h2, h3, p, figure { margin-top: 0; }
 h1, h2, h3 { line-height: .98; letter-spacing: -.055em; }
@@ -224,6 +224,7 @@ h1 em, h2 em { color: inherit; font-style: normal; }
   html { scroll-padding-top: 78px; }
   .container { width: calc(100% - 36px); }
   .header-inner { min-height: 68px; flex-wrap: wrap; gap: 0; padding-block: 10px; }
+  body.nav-ready .nav-toggle { display: block; }
   .site-nav { width: 100%; padding-top: 12px; flex-wrap: wrap; gap: 8px 22px; }
   body.nav-ready .site-nav { display: none; }
   body.nav-ready .site-nav[data-open="true"] { display: flex; flex-direction: column; align-items: stretch; gap: 0; }
