@@ -1,0 +1,56 @@
+[
+  {
+    "date": "2026-09-01",
+    "dateLabel": "Fall 2026",
+    "category": "Campus leadership",
+    "title": "Leading TUCP’s next season",
+    "summary": "As president, I’m helping a 200+ member organization produce concerts, comedy, speakers, and campus traditions.",
+    "source": "TUCP",
+    "url": "https://www.geauxtucp.com/"
+  },
+  {
+    "date": "2026-04-28",
+    "dateLabel": "April 2026",
+    "category": "Entrepreneurship",
+    "title": "GiVV earns first place and $15K",
+    "summary": "Our team’s social-impact marketplace concept won Tulane’s inaugural Startup Strategy Lab pitch competition after a semester of research and building.",
+    "source": "Tulane Innovation Institute",
+    "url": "https://innovation.tulane.edu/students-turn-ideas-ventures-tulanes-inaugural-startup-strategy-lab-course"
+  },
+  {
+    "date": "2026-03-01",
+    "dateLabel": "2026",
+    "category": "Community",
+    "title": "Building relationships with Strong City",
+    "summary": "As Director of Engagement, I connect Tulane students with New Orleans partners through sustained volunteering, Field Day, and the annual Thanksgiving Drive.",
+    "source": "Strong City",
+    "url": "https://www.mystrongcity.org/about-us"
+  },
+  {
+    "date": "2026-09-01",
+    "dateLabel": "Updated monthly",
+    "category": "Listening",
+    "title": "A playlist for every month",
+    "summary": "I use monthly playlists as little time capsules for places, people, and whatever I have on repeat. Find me on Spotify as @avigorodetski.",
+    "source": "Spotify",
+    "url": "https://open.spotify.com/search/avigorodetski"
+  },
+  {
+    "date": "2026-09-01",
+    "dateLabel": "Ongoing",
+    "category": "Notes and milestones",
+    "title": "Professional updates, in my own words",
+    "summary": "For shorter reflections on leadership, social impact, and the work behind the work, my LinkedIn is the most current source.",
+    "source": "LinkedIn",
+    "url": "https://www.linkedin.com/in/avigorodetski"
+  },
+  {
+    "date": "2026-09-01",
+    "dateLabel": "Open source",
+    "category": "This site",
+    "title": "The portfolio behind the portfolio",
+    "summary": "The source for this site lives on GitHub, including the content system that keeps this page curated and easy to update.",
+    "source": "GitHub",
+    "url": "https://github.com/agorodetski/portfolio"
+  }
+]

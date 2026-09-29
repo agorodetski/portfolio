@@ -1,32 +1,33 @@
 # Avi Gorodetski — Portfolio
 
-A personal and professional portfolio featuring Avi’s work in social-impact entrepreneurship, community leadership, campus programming, and client service.
+A responsive, multi-page personal and professional portfolio for Avi Gorodetski. The site features work with GiVV, BBYO, TUCP, and other organizations, plus an experience page, a personal introduction, and direct contact links.
 
-## Structure
+## Pages
 
-- `index.html`: biography, selected project stories, experience, and contact link
-- `styles.css`: responsive editorial design, print styles, focus states, and reduced-motion support
-- `script.js`: progressively enhanced mobile navigation and current copyright year
-- `favicon.svg`: custom site icon
+- `index.html` — introduction and featured work
+- `work/index.html` — selected work
+- `now/index.html` — curated current work, community, and listening updates
+- `work/alphasights/index.html`, `work/givv/index.html`, and the other pages under `work/` — selected experience and project stories
+- `about/index.html` — background and interests
+- `experience/index.html` — roles, education, and résumé
+- `contact/index.html` — email, LinkedIn, and résumé
 
-## Design and accessibility
+The supplied headshot, event photography, and résumé are in `assets/`. The copy and page markup live in `build_site.py`, while `styles.css` and `script.js` provide the shared presentation, update renderer, and mobile navigation. Curated update data lives in `updates.json`. The build script writes HTML to the repository root and mirrors the complete static site into `dist/` for Sites hosting. All links and assets use relative URLs, so the site works on a subpath as well as a domain root.
 
-The site uses semantic HTML, native expandable project details, a skip link, visible keyboard focus, and a mobile menu with accurate expanded state and Escape handling. Navigation and project content remain available without JavaScript. There are no runtime dependencies, external font requests, trackers, or third-party embeds.
+## Curated updates
 
-All local assets use relative paths, so the site works from a domain root or a GitHub Pages repository subdirectory.
+`updates.json` is the canonical source for the homepage “Recently” section and the full Now page. Keep the list newest-first and to no more than six items. Add an item only when it strengthens the professional story or adds a meaningful personal dimension; do not mirror every social post. Each item requires an ISO date, reader-facing date label, category, title, short summary, source name, and public source URL.
 
-## Preview
+Review these public sources for candidates: Avi's LinkedIn profile, TUCP (`geauxtucp.com` and `@geauxtucp`), GiVV (`@thegivvapp`), Strong City (`mystrongcity.org`), Spotify (`@avigorodetski`), and the GitHub repository. If a source is unavailable, leave the current item unchanged. Never add a claim that cannot be verified against a public source or information Avi has supplied directly. After editing, run the build, confirm the JSON renders on both pages, and publish the resulting `dist/` directory.
 
-Run `python3 -m http.server 8000` in this directory, then open `http://localhost:8000`. There is no build step or package installation.
+## Editing and preview
 
-## Editing content
+Run `python3 build_site.py` after changing page content, CSS, or JavaScript. Preview locally with `python3 -m http.server 8000` and open `http://localhost:8000/`. No package installation is required.
 
-Update the sections directly in `index.html`. Each project uses a native `details` element for its longer story. Keep the short project introduction readable without expanding the details. Define site-wide colors and spacing in the CSS `:root` variables.
-
-The contact destination currently points to Avi’s verified GitHub profile. Replace it with a preferred professional email or LinkedIn URL once provided. No email, profile URL, résumé download, headshot, or testimonial has been invented.
+The site uses semantic landmarks, visible keyboard focus, a skip link, reduced-motion support, and a navigation menu that works as ordinary links when JavaScript is unavailable.
 
 ## Publishing
 
-This repository is ready for static hosting. For GitHub Pages, enable Pages in repository settings and select **Deploy from a branch → main → / (root)** after merging the website changes. Repository code being updated does not itself confirm Pages is enabled.
+The current hosted Site uses `.openai/hosting.json` and the static `dist/` directory. The repository-root pages can also be served with GitHub Pages.
 
-Before publishing, review biography, role dates, and project metrics for accuracy. Refresh time-sensitive information when roles change or after graduation.
+The Site's audience remains owner-only until its access settings are changed. The contact email is Avi's Tulane address from her résumé. The Spotify handle appears as text because a direct profile URL has not yet been verified.
