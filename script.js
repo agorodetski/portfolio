@@ -38,6 +38,10 @@ const renderUpdates = async (container) => {
   const source = container.dataset.updatesSource;
   const limit = Number.parseInt(container.dataset.updatesLimit || '6', 10);
 
+  // The loading line is hidden in the markup so visitors without JavaScript see the <noscript> note instead.
+  const loading = container.querySelector('.updates-status');
+  if (loading) loading.hidden = false;
+
   try {
     const response = await fetch(source, { cache: 'no-cache' });
     if (!response.ok) throw new Error(`Updates request failed: ${response.status}`);
@@ -72,9 +76,14 @@ const renderUpdates = async (container) => {
       return article;
     }));
   } catch (error) {
-    const status = container.querySelector('.updates-status') || document.createElement('p');
+    const status = document.createElement('p');
     status.className = 'updates-status';
-    status.textContent = 'Current notes are temporarily unavailable. Visit LinkedIn for the latest.';
+    const linkedin = document.createElement('a');
+    linkedin.href = 'https://www.linkedin.com/in/avigorodetski';
+    linkedin.target = '_blank';
+    linkedin.rel = 'noopener noreferrer';
+    linkedin.textContent = 'LinkedIn';
+    status.append('Current notes are temporarily unavailable. Visit ', linkedin, ' for the latest.');
     container.replaceChildren(status);
   }
 };

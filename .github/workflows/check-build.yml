@@ -1,0 +1,25 @@
+name: Check build
+
+# Rebuilds the site and fails if the committed root pages or dist/ are out of date,
+# so a missing asset or stale mirror cannot reach hosting unnoticed.
+on:
+  push:
+  pull_request:
+
+jobs:
+  check-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Build the site
+        run: python3 build_site.py
+      - name: Fail if the committed output is stale
+        run: |
+          git add -A --intent-to-add
+          git diff --exit-code --stat || {
+            echo "::error::Committed output differs from a fresh build. Run 'python3 build_site.py' and commit the result."
+            exit 1
+          }

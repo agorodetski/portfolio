@@ -1,18 +1,80 @@
 """Build Avi's dependency-free, multi-page portfolio into the Site's static dist directory."""
 from pathlib import Path
 from html import escape
+import re
 import shutil
+import struct
+import sys
 
 ROOT = Path(__file__).parent
 DIST = ROOT / 'dist'
 SITE = 'Avi Gorodetski'
 
+# Set SITE_URL to the public address once the site has one (no trailing slash), e.g.
+# 'https://example.com' or 'https://agorodetski.github.io/portfolio'. When set, the build also
+# emits canonical/og:url/og:image tags and sitemap.xml. Left empty, those are skipped because
+# they need absolute URLs and the site otherwise uses relative URLs only.
+SITE_URL = ''
 
-def page(path: str, title: str, description: str, active: str, body: str) -> None:
+# One place to change the public contact address (footer + contact page).
+EMAIL = 'agorodetski@tulane.edu'
+
+OG_IMAGE = 'assets/og-image.jpg'
+
+
+def image_size(path: Path):
+    """Return (width, height) of a JPEG or PNG without third-party packages."""
+    data = path.read_bytes()
+    if data[:8] == b'\x89PNG\r\n\x1a\n':
+        return struct.unpack('>II', data[16:24])
+    if data[:2] == b'\xff\xd8':
+        i = 2
+        while i < len(data):
+            if data[i] != 0xFF:
+                i += 1
+                continue
+            marker = data[i + 1]
+            if marker in (0xC0, 0xC1, 0xC2):
+                height, width = struct.unpack('>HH', data[i + 5:i + 9])
+                return width, height
+            i += 2 + struct.unpack('>H', data[i + 2:i + 4])[0]
+    raise ValueError(f'Unsupported image: {path}')
+
+
+def sync_image_dimensions(markup: str) -> str:
+    """Keep every <img> width/height equal to the real file so they can never drift."""
+    def fix(match):
+        tag = match.group(0)
+        src = re.search(r'src="([^"]*assets/[^"]+)"', tag)
+        if not src:
+            return tag
+        file = ROOT / 'assets' / src.group(1).split('assets/', 1)[1]
+        if not file.exists():
+            return tag
+        width, height = image_size(file)
+        tag = re.sub(r'\swidth="\d+"', f' width="{width}"', tag)
+        tag = re.sub(r'\sheight="\d+"', f' height="{height}"', tag)
+        return tag
+    return re.sub(r'<img\b[^>]*>', fix, markup)
+
+
+PAGES = []
+
+
+def page(path: str, title: str, description: str, active: str, body: str, base: str = None, indexable: bool = True) -> None:
     target = ROOT / path
     target.parent.mkdir(parents=True, exist_ok=True)
     depth = len(Path(path).parts) - 1
-    base = '../' * depth
+    if base is None:
+        base = '../' * depth
+    if indexable:
+        PAGES.append(path)
+    page_url = SITE_URL + '/' + ('' if path == 'index.html' else path.removesuffix('index.html')) if SITE_URL else ''
+    canonical = f'\n  <link rel="canonical" href="{page_url}">\n  <meta property="og:url" content="{page_url}">' if page_url and indexable else ''
+    og_image = (f'\n  <meta property="og:image" content="{SITE_URL}/{OG_IMAGE}">'
+                f'\n  <meta name="twitter:image" content="{SITE_URL}/{OG_IMAGE}">') if SITE_URL else ''
+    twitter_card = 'summary_large_image' if SITE_URL else 'summary'
+    body = body.replace('@@EMAIL@@', EMAIL).replace('@@BASE@@', base)
     links = [('Home', 'index.html'), ('Work', 'work/index.html'), ('Now', 'now/index.html'),
              ('About', 'about/index.html'), ('Experience', 'experience/index.html'),
              ('Contact', 'contact/index.html')]
@@ -30,6 +92,10 @@ def page(path: str, title: str, description: str, active: str, body: str) -> Non
   <meta property="og:title" content="{escape(title, quote=True)} | {SITE}">
   <meta property="og:description" content="{escape(description, quote=True)}">
   <meta property="og:type" content="website">
+  <meta property="og:site_name" content="{SITE}">
+  <meta property="og:locale" content="en_US">
+  <meta name="twitter:card" content="{twitter_card}">
+  <meta name="author" content="{SITE}">{canonical}{og_image}
   <title>{escape(title)} | {SITE}</title>
   <link rel="icon" href="{base}favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="{base}styles.css">
@@ -45,11 +111,13 @@ def page(path: str, title: str, description: str, active: str, body: str) -> Non
     </div>
   </header>
   <main id="main">{body}</main>
-  <footer class="site-footer"><div class="container footer-inner"><span>© <span id="year">2026</span> Avi Gorodetski</span><span>New Orleans / New York / DC</span><a href="mailto:agorodetski@tulane.edu">Email me <span aria-hidden="true">↗</span></a></div></footer>
+  <footer class="site-footer"><div class="container footer-inner"><span>© <span id="year">2026</span> Avi Gorodetski</span><span>New Orleans / New York / DC</span><a href="mailto:{EMAIL}">Email me <span aria-hidden="true">↗</span></a></div></footer>
 </body>
 </html>
 '''
-    target.write_text(markup)
+    if not indexable:
+        markup = markup.replace('<meta name="author"', '<meta name="robots" content="noindex">\n  <meta name="author"')
+    target.write_text(sync_image_dimensions(markup))
 
 
 home = '''
@@ -75,7 +143,7 @@ home = '''
 </section>
 <section class="section updates-section"><div class="container">
   <div class="section-heading"><div><p class="eyebrow">Recently / 02</p><h2>What I’m doing now.</h2></div><p>A short, curated view of current work, community, and the music in rotation.</p></div>
-  <div class="updates-grid" data-updates-source="updates.json" data-updates-limit="3"><p class="updates-status">Loading recent updates…</p></div>
+  <div class="updates-grid" data-updates-source="updates.json" data-updates-limit="3"><p class="updates-status" hidden>Loading recent updates…</p><noscript><p class="updates-status">Updates load with JavaScript. For the latest, visit <a href="https://www.linkedin.com/in/avigorodetski" target="_blank" rel="noopener noreferrer">LinkedIn</a>.</p></noscript></div>
   <p class="section-end"><a class="text-link" href="now/index.html">Visit the Now page</a></p>
 </div></section>
 <section class="section section-ink"><div class="container invitation"><div><p class="eyebrow">Currently</p><h2>Exploring what comes after Tulane.</h2></div><div><p>I’m interested in strategy, philanthropy, program management, and social-impact roles in New York or Washington, DC.</p><a class="button button-light" href="contact/index.html">Contact <span aria-hidden="true">↗</span></a></div></div></section>
@@ -108,7 +176,7 @@ now = '''
 <section class="page-intro container"><p class="eyebrow">Now / 02</p><h1>What I’m doing, building, and listening to.</h1><p class="lede">A living page for the work and ideas that are most current—edited for signal, not volume.</p></section>
 <section class="section container section-tight">
   <div class="now-intro"><p class="eyebrow">Current notes</p><p>This page brings together selected updates from my work with TUCP, GiVV, and Strong City, plus occasional notes from LinkedIn and my monthly Spotify habit.</p></div>
-  <div class="updates-grid updates-grid-full" data-updates-source="../updates.json" data-updates-limit="6"><p class="updates-status">Loading current updates…</p></div>
+  <div class="updates-grid updates-grid-full" data-updates-source="../updates.json" data-updates-limit="6"><p class="updates-status" hidden>Loading current updates…</p><noscript><p class="updates-status">Updates load with JavaScript. For the latest, visit <a href="https://www.linkedin.com/in/avigorodetski" target="_blank" rel="noopener noreferrer">LinkedIn</a>.</p></noscript></div>
 </section>
 <section class="section soft-section"><div class="container source-strip"><div><p class="eyebrow">Follow along</p><h2>Elsewhere.</h2></div><div class="source-links"><a href="https://www.linkedin.com/in/avigorodetski" target="_blank" rel="noopener noreferrer">LinkedIn</a><a href="https://www.geauxtucp.com/" target="_blank" rel="noopener noreferrer">TUCP</a><a href="https://www.instagram.com/thegivvapp/" target="_blank" rel="noopener noreferrer">GiVV</a><a href="https://www.mystrongcity.org/" target="_blank" rel="noopener noreferrer">Strong City</a><a href="https://open.spotify.com/search/avigorodetski" target="_blank" rel="noopener noreferrer">Spotify</a><a href="https://github.com/agorodetski/portfolio" target="_blank" rel="noopener noreferrer">GitHub</a></div></div></section>
 '''
@@ -116,9 +184,9 @@ page('now/index.html','Now','Current work, community projects, ideas, and monthl
 
 givv = '''
 <section class="story-intro container"><a class="back-link" href="../index.html">← All work</a><p class="eyebrow">02 / GiVV · Co-founder &amp; COO</p><h1>From student research to a $15K pitch win.</h1><p class="lede">Our team developed a social marketplace concept that connects Tulane students with New Orleans nonprofits.</p><div class="story-facts"><div><strong>15+</strong><span>Student interviews</span></div><div><strong>$15K</strong><span>First-place award</span></div><div><strong>2026</strong><span>Founded at Tulane</span></div></div></section>
-<figure class="story-hero"><img src="../../assets/givv-pitch.jpg" alt="GiVV team presenting its final startup pitch at Tulane" width="2048" height="1645"><figcaption>GiVV’s final pitch at Tulane’s Strategy Start-Up Lab, April 2026.</figcaption></figure>
+<figure class="story-hero"><img src="../../assets/givv-pitch.jpg" alt="GiVV team presenting its final startup pitch at Tulane" width="2048" height="1645"><figcaption>GiVV’s final pitch at Tulane’s Startup Strategy Lab, April 2026.</figcaption></figure>
 <section class="section container story-layout"><div><p class="eyebrow">The idea</p><h2>Lower the barriers to local giving.</h2></div><div class="story-prose"><p>GiVV is a social marketplace concept connecting Tulane students with local nonprofits through micro-donations, social sharing, and student-organization competitions.</p><p>In 15+ interviews, students pointed to limited funds, questions of trust, and decision fatigue. Personal connection and seeing friends participate made a difference. Those findings shaped our approach.</p></div></section>
-<section class="section soft-section"><div class="container story-layout"><div><p class="eyebrow">My contribution</p><h2>Building the work behind the pitch.</h2></div><div class="story-prose"><p>As co-founder and COO, I led operations throughout our semester-long startup incubator, contributed to strategy and user research, and developed the social media strategy and content. My teammates and I built and presented the concept together.</p><p>On April 28, 2026, GiVV placed first in Tulane’s Strategy Start-Up Lab final pitch competition and earned a $15,000 award. It was a proof point for the idea—and for what a committed team can do in one semester.</p></div></div></section>
+<section class="section soft-section"><div class="container story-layout"><div><p class="eyebrow">My contribution</p><h2>Building the work behind the pitch.</h2></div><div class="story-prose"><p>As co-founder and COO, I led operations throughout our semester-long startup incubator, contributed to strategy and user research, and developed the social media strategy and content. My teammates and I built and presented the concept together.</p><p>On April 28, 2026, GiVV placed first in Tulane’s Startup Strategy Lab final pitch competition and earned a $15,000 award. It was a proof point for the idea—and for what a committed team can do in one semester.</p></div></div></section>
 <figure class="story-hero story-photo-end"><img src="../../assets/givv-team.jpg" alt="GiVV founders and supporters celebrating with the $15,000 first-place check" loading="lazy" width="2048" height="1697"><figcaption>The GiVV team after the first-place award.</figcaption></figure>
 <div class="container next-story"><span>Next story</span><a href="../tucp/index.html">Programming for an entire campus <span aria-hidden="true">↗</span></a></div>
 '''
@@ -180,18 +248,69 @@ experience = '''
 page('experience/index.html','Experience','Avi Gorodetski’s experience in client service, social-impact entrepreneurship, campus leadership, grant review, and research.','Experience',experience)
 
 contact = '''
-<section class="contact-page container"><p class="eyebrow">Contact / 04</p><h1>Get in touch.</h1><p class="lede">For recruiting, partnerships, startup conversations, or anything else: email is best.</p><div class="contact-options"><a href="mailto:agorodetski@tulane.edu"><span>Email</span><strong>agorodetski@tulane.edu</strong><span aria-hidden="true">↗</span></a><a href="https://www.linkedin.com/in/avigorodetski" target="_blank" rel="noopener noreferrer"><span>LinkedIn</span><strong>avigorodetski</strong><span aria-hidden="true">↗</span></a><a href="../assets/avi-gorodetski-resume.pdf" target="_blank" rel="noopener"><span>Résumé</span><strong>Download PDF</strong><span aria-hidden="true">↗</span></a></div><p class="contact-footnote">New Orleans, Louisiana · Graduating from Tulane in May 2027</p></section>
+<section class="contact-page container"><p class="eyebrow">Contact / 04</p><h1>Get in touch.</h1><p class="lede">For recruiting, partnerships, startup conversations, or anything else: email is best.</p><div class="contact-options"><a href="mailto:@@EMAIL@@"><span>Email</span><strong>@@EMAIL@@</strong><span aria-hidden="true">↗</span></a><a href="https://www.linkedin.com/in/avigorodetski" target="_blank" rel="noopener noreferrer"><span>LinkedIn</span><strong>avigorodetski</strong><span aria-hidden="true">↗</span></a><a href="../assets/avi-gorodetski-resume.pdf" target="_blank" rel="noopener"><span>Résumé</span><strong>Download PDF</strong><span aria-hidden="true">↗</span></a></div><p class="contact-footnote">New Orleans, Louisiana · Graduating from Tulane in May 2027</p></section>
 '''
-page('contact/index.html','Contact','Get in touch with Avi Gorodetski by email or LinkedIn, and view her résumé.','Contact',contact)
+page('contact/index.html','Contact','Get in touch with Avi Gorodetski by email or LinkedIn, and view the résumé.','Contact',contact)
+
+not_found = '''
+<section class="contact-page container"><p class="eyebrow">404 / Not found</p><h1>That page isn’t here.</h1><p class="lede">The link may be out of date. Head back to the homepage or browse selected work.</p><div class="actions"><a class="button button-primary" href="@@BASE@@index.html">Home <span aria-hidden="true">↗</span></a><a class="text-link" href="@@BASE@@work/index.html">Selected work</a></div></section>
+'''
+# A 404 page is served from whatever URL was mistyped, so relative links would break. It uses the
+# public address when SITE_URL is set, otherwise root-relative paths (fine on a domain root).
+page('404.html', 'Page not found', 'This page could not be found.', '', not_found,
+     base=(SITE_URL + '/') if SITE_URL else '/', indexable=False)
+
+# robots.txt always; sitemap.xml only when absolute URLs are possible.
+robots = 'User-agent: *\nAllow: /\n'
+sitemap_path = ROOT / 'sitemap.xml'
+if SITE_URL:
+    robots += f'\nSitemap: {SITE_URL}/sitemap.xml\n'
+    urls = ''.join(
+        f'  <url><loc>{SITE_URL}/{"" if p == "index.html" else p.removesuffix("index.html")}</loc></url>\n'
+        for p in PAGES
+    )
+    sitemap_path.write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + urls + '</urlset>\n'
+    )
+elif sitemap_path.exists():
+    sitemap_path.unlink()
+(ROOT / 'robots.txt').write_text(robots)
 
 # Mirror the authored static site into the directory used by Sites hosting.
 DIST.mkdir(exist_ok=True)
-for path in ['index.html','styles.css','script.js','favicon.svg','updates.json']:
-    shutil.copy2(ROOT / path, DIST / path)
-for directory in ['work','now','about','experience','contact','assets']:
+FILES = ['index.html', '404.html', 'styles.css', 'script.js', 'favicon.svg', 'updates.json', 'robots.txt', 'sitemap.xml']
+for name in FILES:
+    src = ROOT / name
+    if src.exists():
+        shutil.copy2(src, DIST / name)
+    elif (DIST / name).exists():
+        (DIST / name).unlink()
+for directory in ['work', 'now', 'about', 'experience', 'contact', 'assets']:
     src = ROOT / directory
     dst = DIST / directory
     if dst.exists():
         shutil.rmtree(dst)
     shutil.copytree(src, dst)
-print('Built eleven static pages with supplied photography, résumé, and curated updates.')
+
+
+def check_site(site_root: Path) -> list:
+    """Return problems: any local link, image, script, or data file a page references that is missing."""
+    problems = []
+    for html_file in sorted(site_root.rglob('*.html')):
+        if site_root == ROOT and DIST in html_file.parents:
+            continue
+        for ref in re.findall(r'(?:href|src|data-updates-source)="([^"]+)"', html_file.read_text()):
+            if re.match(r'(?:[a-z][a-z0-9+.-]*:|#|/)', ref, re.I):
+                continue  # external URL, anchor, or root-relative path
+            if not (html_file.parent / ref.split('#')[0].split('?')[0]).resolve().exists():
+                problems.append(f'{html_file.relative_to(ROOT)}: missing {ref}')
+    return problems
+
+
+# Fail loudly if either copy of the site references a file that is not there.
+problems = check_site(ROOT) + check_site(DIST)
+if problems:
+    print('Build check failed:', *problems, sep='\n  ')
+    sys.exit(1)
+print(f'Built {len(PAGES)} static pages plus a 404 page; all local links and assets resolve in the root and dist copies.')
