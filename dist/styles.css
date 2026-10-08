@@ -81,7 +81,7 @@ h1 em, h2 em { color: inherit; font-style: normal; }
 .hero .lede { max-width: 590px; }
 .hero-aside { padding-top: 20px; margin-top: 56px; border-top: 1px solid var(--ink); color: var(--muted); font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; }
 .hero-photo { position: relative; margin: 0; }
-.hero-photo img { width: 100%; height: auto; aspect-ratio: 2 / 3; object-fit: contain; filter: saturate(.76) contrast(1.04); }
+.hero-photo img { width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; object-position: 50% 30%; filter: saturate(.76) contrast(1.04); }
 .hero-photo figcaption { position: absolute; right: -12px; bottom: -12px; padding: 10px 14px; background: var(--blue); color: white; font-size: .7rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
 .fact-band { background: var(--blue); color: white; }
 .fact-grid { display: grid; grid-template-columns: repeat(3, 1fr); padding-block: 25px; }
