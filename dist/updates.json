@@ -1,30 +1,12 @@
 [
   {
-    "date": "2026-09-01",
-    "dateLabel": "Fall 2026",
+    "date": "2026-10-01",
+    "dateLabel": "October 2026",
     "category": "Campus leadership",
-    "title": "Leading TUCP’s next season",
-    "summary": "As president, I’m helping a 200+ member organization produce concerts, comedy, speakers, and campus traditions.",
+    "title": "Bringing Keith Lee to Tulane",
+    "summary": "As TUCP president, I’m helping lead the team welcoming creator and food reviewer Keith Lee to campus for a public moderated Q&A on October 21.",
     "source": "TUCP",
     "url": "https://www.geauxtucp.com/"
-  },
-  {
-    "date": "2026-04-28",
-    "dateLabel": "April 2026",
-    "category": "Entrepreneurship",
-    "title": "GiVV earns first place and $15K",
-    "summary": "Our team’s social-impact marketplace concept won Tulane’s inaugural Startup Strategy Lab pitch competition after a semester of research and building.",
-    "source": "Tulane Innovation Institute",
-    "url": "https://innovation.tulane.edu/students-turn-ideas-ventures-tulanes-inaugural-startup-strategy-lab-course"
-  },
-  {
-    "date": "2026-03-01",
-    "dateLabel": "2026",
-    "category": "Community",
-    "title": "Building relationships with Strong City",
-    "summary": "As Director of Engagement, I connect Tulane students with New Orleans partners through sustained volunteering, Field Day, and the annual Thanksgiving Drive.",
-    "source": "Strong City",
-    "url": "https://www.mystrongcity.org/about-us"
   },
   {
     "date": "2026-09-01",
@@ -52,5 +34,23 @@
     "summary": "The source for this site lives on GitHub, including the content system that keeps this page curated and easy to update.",
     "source": "GitHub",
     "url": "https://github.com/agorodetski/portfolio"
+  },
+  {
+    "date": "2026-04-28",
+    "dateLabel": "April 2026",
+    "category": "Entrepreneurship",
+    "title": "GiVV earns first place and $15K",
+    "summary": "Our team’s social-impact marketplace concept won Tulane’s inaugural Startup Strategy Lab pitch competition after a semester of research and building.",
+    "source": "Tulane Innovation Institute",
+    "url": "https://innovation.tulane.edu/students-turn-ideas-ventures-tulanes-inaugural-startup-strategy-lab-course"
+  },
+  {
+    "date": "2026-03-01",
+    "dateLabel": "2026",
+    "category": "Community",
+    "title": "Building relationships with Strong City",
+    "summary": "As Director of Engagement, I connect Tulane students with New Orleans partners through sustained volunteering, Field Day, and the annual Thanksgiving Drive.",
+    "source": "Strong City",
+    "url": "https://www.mystrongcity.org/about-us"
   }
 ]
