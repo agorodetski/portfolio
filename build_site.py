@@ -233,7 +233,7 @@ home = '''
   <p class="section-end"><a class="text-link" href="work/index.html">See all selected work <span aria-hidden="true">↗</span></a></p>
 </section>
 <section class="section updates-section"><div class="container">
-  <div class="section-heading"><div><p class="eyebrow">Recently / 02</p><h2>What I’m doing now.</h2></div><p>A short, curated view of current work, community, and the music in rotation.</p></div>
+  <div class="section-heading"><div><p class="eyebrow">Recently / 02</p><h2>What I’m doing now.</h2></div><p>A short, curated view of current work and community. The full Now page adds the music in rotation.</p></div>
   <div class="updates-grid">@@UPDATES:3@@</div>
   <p class="section-end"><a class="button button-primary" href="now/index.html">See all current updates <span aria-hidden="true">↗</span></a></p>
 </div></section>
@@ -304,14 +304,12 @@ bbyo = '''
 '''
 page('work/bbyo/index.html','BBYO Leadership','Avi Gorodetski’s year as BBYO International Teen President, leading a global network of 1,200+ teen leaders.','Work',bbyo)
 
-# The Thanksgiving Drive photo (assets/strong-city-thanksgiving.png) was removed because the committed
-# file was corrupt (truncated PNG data) and rendered as a blank box. To restore it, re-export the original
-# photo as a ~1600px JPEG, add it to assets/, and re-add a <figure> after the Thanksgiving Drive section.
 strong_city = '''
 <section class="story-intro container"><a class="back-link" href="../index.html">← All work</a><p class="eyebrow">05 / Strong City · Engagement Director</p><h1>Community work built on relationships.</h1><p class="lede">Connecting Tulane students with New Orleans organizations through sustained partnerships and large-scale service.</p><div class="story-facts"><div><strong>100+</strong><span>Youth at Field Day</span></div><div><strong>600+</strong><span>Food boxes packed</span></div><div><strong>2024–</strong><span>Strong City leadership</span></div></div></section>
 <figure class="story-hero"><img src="../../assets/strong-city-field-day.jpeg" alt="Avi with the Strong City team at Field Day" width="2048" height="1365"><figcaption>The Strong City team at Field Day, the organization’s largest annual event.</figcaption></figure>
 <section class="section container story-layout"><div><p class="eyebrow">Field Day</p><h2>Bring campus and community together.</h2></div><div class="story-prose"><p>Strong City’s annual Field Day brings more than 100 young people from across New Orleans to Tulane for a day of activities and connection.</p><p>My work focuses on the relationships and coordination that make programs like this possible: partnering with local nonprofits, organizing students, and keeping community priorities at the center.</p></div></section>
 <section class="section soft-section"><div class="container story-layout"><div><p class="eyebrow">Thanksgiving Drive</p><h2>Turn a big goal into a clear operation.</h2></div><div class="story-prose"><p>Each year, the Thanksgiving Drive coordinates volunteers to pack more than 600 boxes of nonperishable food and produce for families across New Orleans.</p><p>It is community engagement at its most practical: many people, many moving pieces, and a tangible result.</p></div></div></section>
+<figure class="story-hero story-hero-contained story-photo-end"><img src="../../assets/strong-city-thanksgiving.jpg" alt="Strong City Thanksgiving Drive volunteers in matching cream t-shirts, posed in front of a wall of cardboard boxes" loading="lazy" width="1600" height="1200"><figcaption>Volunteers gathered for Strong City’s Thanksgiving Drive.</figcaption></figure>
 <div class="container next-story"><span>Next story</span><a href="../alphasights/index.html">Finding the right expertise, fast <span aria-hidden="true">↗</span></a></div>
 '''
 page('work/strong-city/index.html','Strong City','Avi Gorodetski’s community engagement work with Strong City in New Orleans.','Work',strong_city)

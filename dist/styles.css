@@ -165,6 +165,9 @@ h1 em, h2 em { color: inherit; font-style: normal; }
 .story-hero img { width: 100%; max-height: 680px; object-fit: cover; object-position: center 45%; filter: saturate(.88); }
 .story-hero-portrait { max-width: 920px; }
 .story-hero-portrait img { height: 680px; object-position: center 72%; }
+/* Large group photos are shown whole, in a narrower frame, so nobody in the front row gets cropped out. */
+.story-hero-contained { max-width: 960px; }
+.story-hero-contained img { height: auto; max-height: none; }
 .story-hero figcaption { padding-top: 10px; color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; }
 .story-layout { display: grid; grid-template-columns: .8fr 1fr; gap: 12%; }
 .story-layout h2 { font-size: clamp(2.7rem, 4.3vw, 4.4rem); }
@@ -275,6 +278,7 @@ h1 em, h2 em { color: inherit; font-style: normal; }
   .story-facts { margin-top: 34px; }
   .story-hero { width: calc(100% - 36px); }
   .story-hero img { max-height: 500px; }
+  .story-hero-contained img { max-height: none; }
   .story-photo-end { padding-top: 52px; }
   .next-story { flex-direction: column; padding-block: 42px; margin-top: 38px; }
   .experience-list article:first-child { border-top: 1px solid var(--ink); padding-top: 24px; }
