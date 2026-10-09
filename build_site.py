@@ -1,20 +1,22 @@
 """Build Avi's dependency-free, multi-page portfolio into the Site's static dist directory."""
 from pathlib import Path
 from html import escape
+import json
 import re
 import shutil
 import struct
 import sys
+import zlib
 
 ROOT = Path(__file__).parent
 DIST = ROOT / 'dist'
 SITE = 'Avi Gorodetski'
 
-# Set SITE_URL to the public address once the site has one (no trailing slash), e.g.
-# 'https://example.com' or 'https://agorodetski.github.io/portfolio'. When set, the build also
-# emits canonical/og:url/og:image tags and sitemap.xml. Left empty, those are skipped because
-# they need absolute URLs and the site otherwise uses relative URLs only.
-SITE_URL = ''
+# The public address (no trailing slash). The site is live on GitHub Pages at this address; change it
+# here if a custom domain replaces it. When set, the build emits canonical/og:url/og:image tags and
+# sitemap.xml, and the 404 page uses absolute links so it keeps its styling on a subpath host. Left
+# empty, those are skipped because they need absolute URLs and the site otherwise uses relative URLs.
+SITE_URL = 'https://agorodetski.github.io/portfolio'
 
 # One place to change the public contact address (footer + contact page).
 EMAIL = 'agorodetski@tulane.edu'
@@ -41,6 +43,28 @@ def image_size(path: Path):
     raise ValueError(f'Unsupported image: {path}')
 
 
+def image_problem(path: Path):
+    """Return a message if a JPEG or PNG is truncated or corrupt (it would render as a blank box), else None."""
+    data = path.read_bytes()
+    if data[:8] == b'\x89PNG\r\n\x1a\n':
+        i = 8
+        while i + 12 <= len(data):
+            length = struct.unpack('>I', data[i:i + 4])[0]
+            end = i + 12 + length
+            kind = data[i + 4:i + 8]
+            if end > len(data):
+                return 'PNG data is truncated'
+            if zlib.crc32(data[i + 4:i + 8 + length]) != struct.unpack('>I', data[i + 8 + length:end])[0]:
+                return f'PNG {kind.decode("latin-1")} chunk is corrupt'
+            if kind == b'IEND':
+                return None
+            i = end
+        return 'PNG data is truncated'
+    if data[:2] == b'\xff\xd8':
+        return None if data.rstrip(b'\x00')[-2:] == b'\xff\xd9' else 'JPEG data is truncated'
+    return 'unrecognized image format'
+
+
 def sync_image_dimensions(markup: str) -> str:
     """Keep every <img> width/height equal to the real file so they can never drift."""
     def fix(match):
@@ -58,10 +82,57 @@ def sync_image_dimensions(markup: str) -> str:
     return re.sub(r'<img\b[^>]*>', fix, markup)
 
 
+UPDATE_FIELDS = ('date', 'dateLabel', 'category', 'title', 'summary', 'source', 'url')
+
+
+def load_updates() -> list:
+    """Read updates.json and enforce the rules documented in the README, so a bad edit fails the build."""
+    items = json.loads((ROOT / 'updates.json').read_text())
+    problems = []
+    if not isinstance(items, list) or not 1 <= len(items) <= 6:
+        problems.append('updates.json must be a list of 1 to 6 items')
+        items = items if isinstance(items, list) else []
+    for n, item in enumerate(items, 1):
+        for field in UPDATE_FIELDS:
+            if not isinstance(item.get(field), str) or not item[field].strip():
+                problems.append(f'update {n}: missing or empty "{field}"')
+        if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', str(item.get('date', ''))):
+            problems.append(f'update {n}: "date" must be an ISO date (YYYY-MM-DD)')
+        if not str(item.get('url', '')).startswith('https://'):
+            problems.append(f'update {n}: "url" must be a public https:// address')
+    if problems:
+        print('updates.json check failed:', *problems, sep='\n  ')
+        sys.exit(1)
+    return items
+
+
+UPDATES = load_updates()
+
+
+def render_updates(limit: int) -> str:
+    """Render the first `limit` curated updates as static cards, so they need no JavaScript or extra request."""
+    cards = []
+    for item in UPDATES[:limit]:
+        title, source = escape(item['title']), escape(item['source'])
+        cards.append(
+            '<article class="update-card">'
+            f'<div class="update-meta"><span>{escape(item["category"])}</span>'
+            f'<time datetime="{escape(item["date"], quote=True)}">{escape(item["dateLabel"])}</time></div>'
+            f'<h3>{title}</h3><p>{escape(item["summary"])}</p>'
+            f'<a class="update-link" href="{escape(item["url"], quote=True)}" target="_blank" rel="noopener noreferrer" '
+            f'aria-label="{title} — view on {source}">View on {source}</a>'
+            '</article>'
+        )
+    return ''.join(cards)
+
+
 PAGES = []
 
 
-def page(path: str, title: str, description: str, active: str, body: str, base: str = None, indexable: bool = True) -> None:
+def page(path: str, title: str, description: str, active: str, body: str, base: str = None, indexable: bool = True,
+         document_title: str = None) -> None:
+    """Write one page. `title` is the short page name; `document_title` overrides the full <title> (used by the homepage)."""
+    full_title = document_title or f'{title} | {SITE}'
     target = ROOT / path
     target.parent.mkdir(parents=True, exist_ok=True)
     depth = len(Path(path).parts) - 1
@@ -75,9 +146,11 @@ def page(path: str, title: str, description: str, active: str, body: str, base: 
                 f'\n  <meta name="twitter:image" content="{SITE_URL}/{OG_IMAGE}">') if SITE_URL else ''
     twitter_card = 'summary_large_image' if SITE_URL else 'summary'
     body = body.replace('@@EMAIL@@', EMAIL).replace('@@BASE@@', base)
+    body = re.sub(r'@@UPDATES:(\d+)@@', lambda m: render_updates(int(m.group(1))), body)
     def nav_link(label: str, href: str, class_name: str = '') -> str:
         class_attr = f' class="{class_name}"' if class_name else ''
-        current = ' aria-current="page"' if label == active else ''
+        # "page" only on the page itself; a section link (Work on a case study) is "true", not "page".
+        current = '' if label != active else (' aria-current="page"' if href == path else ' aria-current="true"')
         return f'<a{class_attr} href="{base}{href}"{current}>{label}</a>'
 
     work_link = nav_link('Work', 'work/index.html', 'nav-work-link')
@@ -93,7 +166,7 @@ def page(path: str, title: str, description: str, active: str, body: str, base: 
     nav = ''.join([
         nav_link('Home', 'index.html'),
         nav_link('Now', 'now/index.html', 'nav-now'),
-        f'<div class="nav-group">{work_link}<div class="nav-submenu" aria-label="Work case studies">{work_subnav}</div></div>',
+        f'<div class="nav-group">{work_link}<div class="nav-submenu" role="group" aria-label="Work case studies">{work_subnav}</div></div>',
         nav_link('Experience', 'experience/index.html'),
         nav_link('About', 'about/index.html'),
         nav_link('Contact', 'contact/index.html'),
@@ -105,16 +178,18 @@ def page(path: str, title: str, description: str, active: str, body: str, base: 
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#182b49">
   <meta name="description" content="{escape(description, quote=True)}">
-  <meta property="og:title" content="{escape(title, quote=True)} | {SITE}">
+  <meta property="og:title" content="{escape(full_title, quote=True)}">
   <meta property="og:description" content="{escape(description, quote=True)}">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="{SITE}">
   <meta property="og:locale" content="en_US">
   <meta name="twitter:card" content="{twitter_card}">
   <meta name="author" content="{SITE}">{canonical}{og_image}
-  <title>{escape(title)} | {SITE}</title>
+  <title>{escape(full_title)}</title>
   <link rel="icon" href="{base}favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="{base}apple-touch-icon.png">
   <link rel="stylesheet" href="{base}styles.css">
+  <noscript><style>@media (max-width: 780px) {{ .site-nav {{ display: flex !important; }} .nav-toggle {{ display: none !important; }} }}</style></noscript>
   <script src="{base}script.js" defer></script>
 </head>
 <body>
@@ -122,7 +197,7 @@ def page(path: str, title: str, description: str, active: str, body: str, base: 
   <header class="site-header">
     <div class="container header-inner">
       <a class="brand" href="{base}index.html" aria-label="Avi Gorodetski, home">avi<span>.</span></a>
-      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" hidden>Menu <span aria-hidden="true">+</span></button>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav"><span class="nav-toggle-label">Menu</span> <span class="nav-toggle-icon" aria-hidden="true">+</span></button>
       <nav class="site-nav" id="site-nav" aria-label="Main navigation">{nav}</nav>
     </div>
   </header>
@@ -158,19 +233,20 @@ home = '''
   <p class="section-end"><a class="text-link" href="work/index.html">See all selected work <span aria-hidden="true">↗</span></a></p>
 </section>
 <section class="section updates-section"><div class="container">
-  <div class="section-heading"><div><p class="eyebrow">Recently / 02</p><h2>What I’m doing now.</h2></div><p>A short, curated view of current work, community, and the music in rotation.</p></div>
-  <div class="updates-grid" data-updates-source="updates.json" data-updates-limit="3"><p class="updates-status" hidden>Loading recent updates…</p><noscript><p class="updates-status">Updates load with JavaScript. For the latest, visit <a href="https://www.linkedin.com/in/avigorodetski" target="_blank" rel="noopener noreferrer">LinkedIn</a>.</p></noscript></div>
+  <div class="section-heading"><div><p class="eyebrow">Recently / 02</p><h2>What I’m doing now.</h2></div><p>A short, curated view of current work and community. The full Now page adds the music in rotation.</p></div>
+  <div class="updates-grid">@@UPDATES:3@@</div>
   <p class="section-end"><a class="button button-primary" href="now/index.html">See all current updates <span aria-hidden="true">↗</span></a></p>
 </div></section>
 <section class="section section-ink"><div class="container invitation"><div><p class="eyebrow">Currently</p><h2>Exploring what comes after Tulane.</h2></div><div><p>I’m interested in strategy, philanthropy, program management, and social-impact roles in New York or Washington, DC.</p><a class="button button-light" href="contact/index.html">Contact <span aria-hidden="true">↗</span></a></div></div></section>
 '''
-page('index.html','Home','Avi Gorodetski builds teams, programs, and experiences across social impact, global leadership, and client service.','Home',home)
+page('index.html','Home','Avi Gorodetski builds teams, programs, and experiences across social impact, global leadership, and client service.','Home',home,
+     document_title=f'{SITE} | Strategy, operations, and community')
 
 work = '''
 <section class="page-intro container"><p class="eyebrow">Selected work / Case studies</p><h1>What I’ve built and led.</h1><p class="lede">Five in-depth case studies showing the challenge, my contribution, and the measurable result—not a complete résumé.</p></section>
 <section class="container section section-tight"><div class="work-list">
   <article class="work-row"><a class="work-image" href="alphasights/index.html"><img src="../assets/alphasights-team.jpeg" alt="Avi with fellow Tulane students at the AlphaSights New York office" width="1200" height="800"></a><div class="work-copy"><span class="kicker">01 / Client service · Summer 2026</span><h2>AlphaSights</h2><p>Managed 10+ concurrent research projects for private equity clients, recruited and vetted 100+ industry experts, and facilitated 30+ client–expert consultations.</p><a class="text-link" href="alphasights/index.html">Explore AlphaSights <span aria-hidden="true">↗</span></a></div></article>
-  <article class="work-row"><a class="work-image" href="givv/index.html"><img src="../assets/givv-team.jpg" alt="GiVV team holding the first-place award" loading="lazy" width="2048" height="1697"></a><div class="work-copy"><span class="kicker">02 / Entrepreneurship · 2026–present</span><h2>GiVV</h2><p>Co-founded a social marketplace concept to connect Tulane students with New Orleans nonprofits. Fifteen-plus research interviews, a semester of building, and a first-place pitch earned our team $15,000.</p><a class="text-link" href="givv/index.html">Explore GiVV <span aria-hidden="true">↗</span></a></div></article>
+  <article class="work-row"><a class="work-image" href="givv/index.html"><img src="../assets/givv-team.jpg" alt="GiVV team holding the first-place award" loading="lazy" width="2048" height="1697"></a><div class="work-copy"><span class="kicker">02 / Entrepreneurship · 2026–present</span><h2>GiVV</h2><p>Co-founded a social marketplace concept to connect Tulane students with New Orleans nonprofits. Fifteen-plus research interviews, a semester of building, and a first-place pitch earned our team $15,000 in startup funding.</p><a class="text-link" href="givv/index.html">Explore GiVV <span aria-hidden="true">↗</span></a></div></article>
   <article class="work-row"><a class="work-image work-image-portrait" href="tucp/index.html"><img src="../assets/tucp-team.jpeg" alt="Avi with members of Tulane University Campus Programming on campus" loading="lazy" width="1536" height="2048"></a><div class="work-copy"><span class="kicker">03 / Campus programming · 2024–present</span><h2>Tulane University Campus Programming</h2><p>Tulane University Campus Programming (TUCP) creates concerts, speakers, comedy, and campus traditions. I helped plan a Natasha Bedingfield concert for roughly 2,000 students, produced a 1,500-person festival, launched TUCP’s first online storefront, and now lead the organization as president.</p><a class="text-link" href="tucp/index.html">Explore TUCP <span aria-hidden="true">↗</span></a></div></article>
   <article class="work-row"><a class="work-image" href="bbyo/index.html"><img src="../assets/bbyo-convention.jpg" alt="BBYO International Convention stage seen from the audience" loading="lazy" width="2048" height="1365"></a><div class="work-copy"><span class="kicker">04 / Global leadership · 2022–23</span><h2>BBYO</h2><p>At BBYO, a global Jewish teen movement, I served as International Teen President, supported a leadership network of 1,200+ teens across 25 countries, and helped bring 4,500 people together for International Convention.</p><a class="text-link" href="bbyo/index.html">Explore BBYO <span aria-hidden="true">↗</span></a></div></article>
   <article class="work-row"><a class="work-image" href="strong-city/index.html"><img src="../assets/strong-city-field-day.jpeg" alt="Avi with the Strong City team at Field Day" loading="lazy" width="2048" height="1365"></a><div class="work-copy"><span class="kicker">05 / Community engagement · 2024–present</span><h2>Strong City</h2><p>Building nonprofit partnerships and helping coordinate Field Day for 100+ New Orleans youth and a Thanksgiving Drive that packs 600+ food boxes for local families.</p><a class="text-link" href="strong-city/index.html">Explore Strong City <span aria-hidden="true">↗</span></a></div></article>
@@ -192,9 +268,10 @@ now = '''
 <section class="page-intro container"><p class="eyebrow">Now / Current updates</p><h1>What I’m doing, building, and listening to.</h1><p class="lede">A living snapshot of recent milestones, current projects, and personal interests—edited for signal, not volume.</p></section>
 <section class="section container section-tight">
   <div class="now-intro"><p class="eyebrow">Current notes</p><p>This page brings together selected updates from Tulane University Campus Programming (TUCP), GiVV, and Strong City, plus occasional notes from LinkedIn and my monthly Spotify habit.</p></div>
-  <div class="updates-grid updates-grid-full" data-updates-source="../updates.json" data-updates-limit="6"><p class="updates-status" hidden>Loading current updates…</p><noscript><p class="updates-status">Updates load with JavaScript. For the latest, visit <a href="https://www.linkedin.com/in/avigorodetski" target="_blank" rel="noopener noreferrer">LinkedIn</a>.</p></noscript></div>
+  <h2 class="visually-hidden">Latest updates</h2>
+  <div class="updates-grid updates-grid-full">@@UPDATES:6@@</div>
 </section>
-<section class="section soft-section"><div class="container source-strip"><div><p class="eyebrow">Follow along</p><h2>Elsewhere.</h2></div><div class="source-links"><a href="https://www.linkedin.com/in/avigorodetski" target="_blank" rel="noopener noreferrer">LinkedIn</a><a href="https://www.geauxtucp.com/" target="_blank" rel="noopener noreferrer">TUCP</a><a href="https://www.instagram.com/thegivvapp/" target="_blank" rel="noopener noreferrer">GiVV</a><a href="https://www.mystrongcity.org/" target="_blank" rel="noopener noreferrer">Strong City</a><a href="https://open.spotify.com/search/avigorodetski" target="_blank" rel="noopener noreferrer">Spotify</a><a href="https://github.com/agorodetski/portfolio" target="_blank" rel="noopener noreferrer">GitHub</a></div></div></section>
+<section class="section soft-section"><div class="container source-strip"><div><p class="eyebrow">Follow along</p><h2>Elsewhere.</h2></div><div class="source-links"><a href="https://www.linkedin.com/in/avigorodetski" target="_blank" rel="noopener noreferrer">LinkedIn</a><a href="https://www.geauxtucp.com/" target="_blank" rel="noopener noreferrer">TUCP</a><a href="https://www.instagram.com/thegivvapp/" target="_blank" rel="noopener noreferrer">GiVV on Instagram</a><a href="https://www.mystrongcity.org/" target="_blank" rel="noopener noreferrer">Strong City</a><a href="https://open.spotify.com/search/avigorodetski" target="_blank" rel="noopener noreferrer">Spotify</a><a href="https://github.com/agorodetski/portfolio" target="_blank" rel="noopener noreferrer">GitHub</a></div></div></section>
 '''
 page('now/index.html','Now','Current work, community projects, ideas, and monthly listening from Avi Gorodetski.','Now',now)
 
@@ -202,7 +279,7 @@ givv = '''
 <section class="story-intro container"><a class="back-link" href="../index.html">← All work</a><p class="eyebrow">02 / GiVV · Co-founder &amp; COO</p><h1>From student research to a $15K pitch win.</h1><p class="lede">Our team developed a social marketplace concept that connects Tulane students with New Orleans nonprofits.</p><div class="story-facts"><div><strong>15+</strong><span>Student interviews</span></div><div><strong>$15K</strong><span>First-place award</span></div><div><strong>2026</strong><span>Founded at Tulane</span></div></div></section>
 <figure class="story-hero"><img src="../../assets/givv-pitch.jpg" alt="GiVV team presenting its final startup pitch at Tulane" width="2048" height="1645"><figcaption>GiVV’s final pitch at Tulane’s Startup Strategy Lab, April 2026.</figcaption></figure>
 <section class="section container story-layout"><div><p class="eyebrow">The idea</p><h2>Lower the barriers to local giving.</h2></div><div class="story-prose"><p>GiVV is a social marketplace concept connecting Tulane students with local nonprofits through micro-donations, social sharing, and student-organization competitions.</p><p>In 15+ interviews, students pointed to limited funds, questions of trust, and decision fatigue. Personal connection and seeing friends participate made a difference. Those findings shaped our approach.</p></div></section>
-<section class="section soft-section"><div class="container story-layout"><div><p class="eyebrow">My contribution</p><h2>Building the work behind the pitch.</h2></div><div class="story-prose"><p>As co-founder and COO, I led operations throughout our semester-long startup incubator, contributed to strategy and user research, and developed the social media strategy and content. My teammates and I built and presented the concept together.</p><p>On April 28, 2026, GiVV placed first in Tulane’s Startup Strategy Lab final pitch competition and earned a $15,000 award. It was a proof point for the idea—and for what a committed team can do in one semester.</p></div></div></section>
+<section class="section soft-section"><div class="container story-layout"><div><p class="eyebrow">My contribution</p><h2>Building the work behind the pitch.</h2></div><div class="story-prose"><p>As co-founder and COO, I led operations throughout our semester-long startup incubator, contributed to strategy and user research, and developed the social media strategy and content. My teammates and I built and presented the concept together.</p><p>On April 28, 2026, GiVV placed first in Tulane’s Startup Strategy Lab final pitch competition and won $15,000 in startup funding. It was a proof point for the idea—and for what a committed team can do in one semester.</p></div></div></section>
 <figure class="story-hero story-photo-end"><img src="../../assets/givv-team.jpg" alt="GiVV founders and supporters celebrating with the $15,000 first-place check" loading="lazy" width="2048" height="1697"><figcaption>The GiVV team after the first-place award.</figcaption></figure>
 <div class="container next-story"><span>Next story</span><a href="../tucp/index.html">Programming for an entire campus <span aria-hidden="true">↗</span></a></div>
 '''
@@ -232,13 +309,13 @@ strong_city = '''
 <figure class="story-hero"><img src="../../assets/strong-city-field-day.jpeg" alt="Avi with the Strong City team at Field Day" width="2048" height="1365"><figcaption>The Strong City team at Field Day, the organization’s largest annual event.</figcaption></figure>
 <section class="section container story-layout"><div><p class="eyebrow">Field Day</p><h2>Bring campus and community together.</h2></div><div class="story-prose"><p>Strong City’s annual Field Day brings more than 100 young people from across New Orleans to Tulane for a day of activities and connection.</p><p>My work focuses on the relationships and coordination that make programs like this possible: partnering with local nonprofits, organizing students, and keeping community priorities at the center.</p></div></section>
 <section class="section soft-section"><div class="container story-layout"><div><p class="eyebrow">Thanksgiving Drive</p><h2>Turn a big goal into a clear operation.</h2></div><div class="story-prose"><p>Each year, the Thanksgiving Drive coordinates volunteers to pack more than 600 boxes of nonperishable food and produce for families across New Orleans.</p><p>It is community engagement at its most practical: many people, many moving pieces, and a tangible result.</p></div></div></section>
-<figure class="story-hero story-photo-end story-hero-crop"><img src="../../assets/strong-city-thanksgiving.png" alt="Strong City volunteers assembling boxes during the Thanksgiving Drive" loading="lazy" width="944" height="2048"><figcaption>Volunteers assembling food boxes for Strong City’s Thanksgiving Drive.</figcaption></figure>
-<div class="container next-story"><span>Next story</span><a href="../givv/index.html">Building a new way to give <span aria-hidden="true">↗</span></a></div>
+<figure class="story-hero story-hero-contained story-photo-end"><img src="../../assets/strong-city-thanksgiving.jpg" alt="Strong City Thanksgiving Drive volunteers in matching cream t-shirts, posed in front of a wall of cardboard boxes" loading="lazy" width="1600" height="1200"><figcaption>Volunteers gathered for Strong City’s Thanksgiving Drive.</figcaption></figure>
+<div class="container next-story"><span>Next story</span><a href="../alphasights/index.html">Finding the right expertise, fast <span aria-hidden="true">↗</span></a></div>
 '''
 page('work/strong-city/index.html','Strong City','Avi Gorodetski’s community engagement work with Strong City in New Orleans.','Work',strong_city)
 
 about = '''
-<section class="page-intro container"><p class="eyebrow">About / 02</p><h1>About Avi.</h1><p class="lede">A sociology student, operator, community builder, and very committed monthly playlist maker.</p></section>
+<section class="page-intro container"><p class="eyebrow">About / Background</p><h1>About Avi.</h1><p class="lede">A sociology student, operator, community builder, and very committed monthly playlist maker.</p></section>
 <section class="section container about-grid"><div class="about-photo"><img src="../assets/avi-headshot.jpg" alt="Portrait of Avi Gorodetski outdoors" width="896" height="1343"></div><div class="about-text"><p class="eyebrow">Background</p><h2>Virginia to New Orleans.</h2><p>I’m a first-generation American from Northern Virginia and a senior at Tulane University, where I study Sociology and Social Policy &amp; Practice with minors in Jewish Studies and Strategy, Leadership &amp; Analytics.</p><p>My studies make me curious about how institutions and communities shape people’s lives. Outside the classroom, I’ve focused on the practical side of that question: building programs, supporting nonprofits, and creating the conditions for people to connect.</p><p>My experience spans a global youth organization, a private equity client-service team, New Orleans nonprofit partnerships, and a startup I founded with friends. I like complex work that calls for both empathy and a good plan.</p><a class="text-link" href="../experience/index.html">Explore my experience <span aria-hidden="true">↗</span></a></div></section>
 <section class="section soft-section"><div class="container"><p class="eyebrow">Outside the résumé</p><h2>Current interests.</h2><div class="personal-grid"><article><span class="personal-number">01 / MUSIC</span><h3>12 playlists a year.</h3><p>I make a new Spotify playlist every month. It’s how I keep track of a place, a season, and the people who were there.</p><span class="personal-aside">Spotify / @avigorodetski</span></article><article><span class="personal-number">02 / TRAVEL</span><h3>32 countries so far.</h3><p>My goal is 50 countries by 50. I’m at 32 and always planning the next one.</p><div class="travel-meter" role="meter" aria-label="Countries visited toward a goal of 50" aria-valuemin="0" aria-valuemax="50" aria-valuenow="32"><span></span></div><span class="personal-aside">32 / 50 countries</span></article><article><span class="personal-number">03 / FOOD</span><h3>Always choosing the restaurant.</h3><p>Exploring a place usually starts with figuring out what to eat. New Orleans has been especially good for this habit.</p></article></div></div></section>
 <section class="section container closing"><p class="eyebrow">How I work</p><h2>Clear context, shared ownership, strong execution.</h2><p>Whether I’m organizing a campus event or working through an uncertain idea with a team, I care about clear communication and the details that keep work moving.</p><a class="button button-primary" href="../contact/index.html">Contact <span aria-hidden="true">↗</span></a></section>
@@ -248,23 +325,23 @@ page('about/index.html','About Avi','Meet Avi Gorodetski: sociology student, com
 experience = '''
 <section class="page-intro container"><p class="eyebrow">Experience / Résumé view</p><h1>Experience.</h1><p class="lede">A chronological overview of my professional roles, leadership, education, and skills. Visit Work for the deeper case studies behind selected experiences.</p><div class="actions"><a class="button button-primary" href="../assets/avi-gorodetski-resume.pdf" target="_blank" rel="noopener">View résumé <span aria-hidden="true">↗</span></a><a class="text-link" href="../work/index.html">Explore case studies <span aria-hidden="true">↗</span></a><a class="text-link" href="https://www.linkedin.com/in/avigorodetski" target="_blank" rel="noopener noreferrer">LinkedIn <span aria-hidden="true">↗</span></a></div></section>
 <section class="section container experience-layout"><div class="experience-heading"><p class="eyebrow">Professional experience</p><h2>What I’ve done.</h2></div><div class="experience-list">
-<article><div class="role-top"><span>2026</span><span>New York, NY</span></div><h3>AlphaSights</h3><p class="role-name">Summer Associate, Client Services · Private Equity</p><p>Managed 10+ concurrent projects for private equity clients, recruited and vetted 100+ industry experts, and facilitated 30+ client–expert consultations to support investment research.</p></article>
-<article><div class="role-top"><span>2026–present</span><span>New Orleans, LA</span></div><h3>GiVV Inc.</h3><p class="role-name">Co-founder</p><p>Led operations throughout a startup incubator and developed social content and strategy for a giving platform concept. Our team won first place and $15,000 in the final pitch competition.</p></article>
+<article><div class="role-top"><span>2026</span><span>New York, NY</span></div><h3>AlphaSights</h3><p class="role-name">Summer Associate, Client Services · Private Equity</p><p>Managed 10+ concurrent projects for private equity clients, recruited and vetted 100+ industry experts, and facilitated 30+ client–expert consultations to support investment research.</p><a class="text-link role-link" href="../work/alphasights/index.html">AlphaSights case study <span aria-hidden="true">↗</span></a></article>
+<article><div class="role-top"><span>2026–present</span><span>New Orleans, LA</span></div><h3>GiVV Inc.</h3><p class="role-name">Co-founder</p><p>Led operations throughout a startup incubator and developed social content and strategy for a giving platform concept. Our team won first place and $15,000 in startup funding in the final pitch competition.</p><a class="text-link role-link" href="../work/givv/index.html">GiVV case study <span aria-hidden="true">↗</span></a></article>
 <article><div class="role-top"><span>2025</span><span>New York, NY</span></div><h3>The Tow Foundation</h3><p class="role-name">Innovation Fund Community Advisor</p><p>Reviewed and scored grant applications for an innovation fund investing in expanded youth mental health support.</p></article>
 <article><div class="role-top"><span>2024–present</span><span>New Orleans, LA</span></div><h3>Tulane Technology Services</h3><p class="role-name">Classroom Experience Assistant</p><p>Support classroom technology and troubleshoot issues to keep learning environments running smoothly.</p></article>
 <article><div class="role-top"><span>2024–2025</span><span>New Orleans, LA</span></div><h3>Tulane University</h3><p class="role-name">Substantive Editor · Research Assistant</p><p>Edited a sociology manuscript for structure and clarity, and analyzed qualitative interview narratives in Jewish Studies research.</p></article>
 </div></section>
 <section class="section soft-section"><div class="container experience-layout"><div class="experience-heading"><p class="eyebrow">Leadership</p><h2>What I’ve led.</h2></div><div class="experience-list">
-<article id="tucp"><div class="role-top"><span>2026–present</span><span>Tulane University</span></div><h3>Tulane University Campus Programming</h3><p class="role-name">President · Former Lagniappe Chair</p><p>Lead a 15+ member board and a 200+ member organization in concerts, comedy, and speaker programming. Previously helped plan a roughly 2,000-person Natasha Bedingfield concert, produced a 1,500-person festival, and launched TUCP’s first online storefront.</p></article>
-<article><div class="role-top"><span>2024–present</span><span>New Orleans, LA</span></div><h3>Strong City Tulane</h3><p class="role-name">Engagement Director · Former Program Coordinator</p><p>Build relationships with New Orleans nonprofit partners and develop student engagement initiatives, including Field Day for 100+ local youth and a Thanksgiving Drive packing 600+ food boxes for families.</p></article>
-<article><div class="role-top"><span>2022–2023</span><span>Global</span></div><h3>BBYO</h3><p class="role-name">International Teen President</p><p>Led a 10-member board and worked with 1,200+ teen leaders across 25 countries. Co-managed a $60,000 budget and helped execute International Convention for 4,500 attendees.</p></article>
+<article id="tucp"><div class="role-top"><span>2026–present</span><span>Tulane University</span></div><h3>Tulane University Campus Programming</h3><p class="role-name">President · Former Lagniappe Chair</p><p>Lead a 15+ member board and a 200+ member organization in concerts, comedy, and speaker programming. Previously helped plan a roughly 2,000-person Natasha Bedingfield concert, produced a 1,500-person festival, and launched TUCP’s first online storefront.</p><a class="text-link role-link" href="../work/tucp/index.html">TUCP case study <span aria-hidden="true">↗</span></a></article>
+<article><div class="role-top"><span>2024–present</span><span>New Orleans, LA</span></div><h3>Strong City Tulane</h3><p class="role-name">Engagement Director · Former Program Coordinator</p><p>Build relationships with New Orleans nonprofit partners and develop student engagement initiatives, including Field Day for 100+ local youth and a Thanksgiving Drive packing 600+ food boxes for families.</p><a class="text-link role-link" href="../work/strong-city/index.html">Strong City case study <span aria-hidden="true">↗</span></a></article>
+<article><div class="role-top"><span>2022–2023</span><span>Global</span></div><h3>BBYO</h3><p class="role-name">International Teen President</p><p>Led a 10-member board and worked with 1,200+ teen leaders across 25 countries in BBYO, a global Jewish teen movement. Co-managed a $60,000 budget and helped execute International Convention for 4,500 attendees.</p><a class="text-link role-link" href="../work/bbyo/index.html">BBYO case study <span aria-hidden="true">↗</span></a></article>
 </div></div></section>
 <section class="section container credentials"><div><p class="eyebrow">Education</p><h2>Tulane University</h2><p>BA, Sociology and Social Policy &amp; Practice · Minors in Jewish Studies and Strategy, Leadership &amp; Analytics · Expected May 2027</p><p>GPA 3.98/4.0 · Dean’s List</p></div><div><p class="eyebrow">Languages &amp; skills</p><h3>Connecting across contexts.</h3><p>Native English and Hebrew; intermediate Spanish. Experience with Salesforce, Canva, Microsoft Office, and Google Workspace.</p><a class="text-link" href="../assets/avi-gorodetski-resume.pdf" target="_blank" rel="noopener">Full résumé <span aria-hidden="true">↗</span></a></div></section>
 '''
 page('experience/index.html','Experience','Avi Gorodetski’s experience in client service, social-impact entrepreneurship, campus leadership, grant review, and research.','Experience',experience)
 
 contact = '''
-<section class="contact-page container"><p class="eyebrow">Contact / 04</p><h1>Get in touch.</h1><p class="lede">For recruiting, partnerships, startup conversations, or anything else: email is best.</p><div class="contact-options"><a href="mailto:@@EMAIL@@"><span>Email</span><strong>@@EMAIL@@</strong><span aria-hidden="true">↗</span></a><a href="https://www.linkedin.com/in/avigorodetski" target="_blank" rel="noopener noreferrer"><span>LinkedIn</span><strong>avigorodetski</strong><span aria-hidden="true">↗</span></a><a href="../assets/avi-gorodetski-resume.pdf" target="_blank" rel="noopener"><span>Résumé</span><strong>Download PDF</strong><span aria-hidden="true">↗</span></a></div><p class="contact-footnote">New Orleans, Louisiana · Graduating from Tulane in May 2027</p></section>
+<section class="contact-page container"><p class="eyebrow">Contact / Reach out</p><h1>Get in touch.</h1><p class="lede">For recruiting, partnerships, startup conversations, or anything else: email is best.</p><div class="contact-options"><a href="mailto:@@EMAIL@@"><span>Email</span><strong>@@EMAIL@@</strong><span aria-hidden="true">↗</span></a><a href="https://www.linkedin.com/in/avigorodetski" target="_blank" rel="noopener noreferrer"><span>LinkedIn</span><strong>avigorodetski</strong><span aria-hidden="true">↗</span></a><a href="../assets/avi-gorodetski-resume.pdf" target="_blank" rel="noopener"><span>Résumé</span><strong>Download PDF</strong><span aria-hidden="true">↗</span></a></div><p class="contact-footnote">New Orleans, Louisiana · Graduating from Tulane in May 2027</p></section>
 '''
 page('contact/index.html','Contact','Get in touch with Avi Gorodetski by email or LinkedIn, and view the résumé.','Contact',contact)
 
@@ -295,7 +372,7 @@ elif sitemap_path.exists():
 
 # Mirror the authored static site into the directory used by Sites hosting.
 DIST.mkdir(exist_ok=True)
-FILES = ['index.html', '404.html', 'styles.css', 'script.js', 'favicon.svg', 'updates.json', 'robots.txt', 'sitemap.xml']
+FILES = ['index.html', '404.html', 'styles.css', 'script.js', 'favicon.svg', 'apple-touch-icon.png', 'updates.json', 'robots.txt', 'sitemap.xml']
 for name in FILES:
     src = ROOT / name
     if src.exists():
@@ -316,7 +393,7 @@ def check_site(site_root: Path) -> list:
     for html_file in sorted(site_root.rglob('*.html')):
         if site_root == ROOT and DIST in html_file.parents:
             continue
-        for ref in re.findall(r'(?:href|src|data-updates-source)="([^"]+)"', html_file.read_text()):
+        for ref in re.findall(r'(?:href|src)="([^"]+)"', html_file.read_text()):
             if re.match(r'(?:[a-z][a-z0-9+.-]*:|#|/)', ref, re.I):
                 continue  # external URL, anchor, or root-relative path
             if not (html_file.parent / ref.split('#')[0].split('?')[0]).resolve().exists():
@@ -324,8 +401,13 @@ def check_site(site_root: Path) -> list:
     return problems
 
 
-# Fail loudly if either copy of the site references a file that is not there.
+# Fail loudly if either copy of the site references a file that is not there, or if an image is damaged.
 problems = check_site(ROOT) + check_site(DIST)
+for image in sorted((ROOT / 'assets').iterdir()):
+    if image.suffix.lower() in ('.jpg', '.jpeg', '.png'):
+        message = image_problem(image)
+        if message:
+            problems.append(f'assets/{image.name}: {message}')
 if problems:
     print('Build check failed:', *problems, sep='\n  ')
     sys.exit(1)
