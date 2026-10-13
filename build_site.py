@@ -202,7 +202,7 @@ def page(path: str, title: str, description: str, active: str, body: str, base: 
     </div>
   </header>
   <main id="main">{body}</main>
-  <footer class="site-footer"><div class="container footer-inner"><span>© <span id="year">2026</span> Avi Gorodetski</span><span>New Orleans / New York / DC</span><a href="mailto:{EMAIL}">Email me <span aria-hidden="true">↗</span></a></div></footer>
+  <footer class="site-footer"><div class="container footer-inner"><span>© <span id="year">2026</span> Avi Gorodetski</span><span>New Orleans / New York / Tel Aviv</span><a href="mailto:{EMAIL}">Email me <span aria-hidden="true">↗</span></a></div></footer>
 </body>
 </html>
 '''
@@ -237,7 +237,7 @@ home = '''
   <div class="updates-grid">@@UPDATES:3@@</div>
   <p class="section-end"><a class="button button-primary" href="now/index.html">See all current updates <span aria-hidden="true">↗</span></a></p>
 </div></section>
-<section class="section section-ink"><div class="container invitation"><div><p class="eyebrow">Currently</p><h2>Exploring what comes after Tulane.</h2></div><div><p>I’m interested in strategy, philanthropy, program management, and social-impact roles in New York or Washington, DC.</p><a class="button button-light" href="contact/index.html">Contact <span aria-hidden="true">↗</span></a></div></div></section>
+<section class="section section-ink"><div class="container invitation"><div><p class="eyebrow">Currently</p><h2>Exploring what comes after Tulane.</h2></div><div><p>I’m interested in strategy, philanthropy, program management, and social-impact roles in New York or Tel Aviv.</p><a class="button button-light" href="contact/index.html">Contact <span aria-hidden="true">↗</span></a></div></div></section>
 '''
 page('index.html','Home','Avi Gorodetski builds teams, programs, and experiences across social impact, global leadership, and client service.','Home',home,
      document_title=f'{SITE} | Strategy, operations, and community')
